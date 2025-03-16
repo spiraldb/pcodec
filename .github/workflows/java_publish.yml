@@ -46,7 +46,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        path: temp_dylibs
+        with:
+          path: temp_dylibs
       - name: Add native libs as resources
         run: |
           mkdir -p pco_java/src/main/resources/${{ env.GROUP_ID }}
