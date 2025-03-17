@@ -7,6 +7,7 @@
 
 [![crates.io][crates-badge]][crates-url]
 [![pypi.org][pypi-badge]][pypi-url]
+[![https://central.sonatype.com/][maven-central-badge]][maven-central-url]
 
 [crates-badge]: https://img.shields.io/crates/v/pco.svg
 
@@ -15,6 +16,10 @@
 [pypi-badge]: https://img.shields.io/pypi/v/pcodec.svg
 
 [pypi-url]: https://pypi.org/project/pcodec/
+
+[maven-central-badge]: https://img.shields.io/maven-central/v/io.github.pcodec/pco-jni
+
+[maven-central-url]: https://central.sonatype.com/artifact/io.github.pcodec/pco-jni
 
 # Pcodec
 
@@ -47,6 +52,8 @@ numerical sequences with
 [Use the Rust API](./pco/README.md)
 
 [Use the Python API](./pco_python/README.md)
+
+[Use the Java API](./pco_java/README.md)
 
 ## How is Pco so much better than alternatives?
 
