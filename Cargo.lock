@@ -2030,7 +2030,6 @@ dependencies = [
  "toml",
  "turbo_pfor_sys",
  "vortex",
- "vortex-file",
  "wav",
  "zstd",
 ]

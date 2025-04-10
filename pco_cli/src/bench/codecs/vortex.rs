@@ -8,14 +8,12 @@ use pco::match_number_enum;
 use tokio::runtime::Runtime;
 use vortex::arrays::PrimitiveArray;
 use vortex::buffer::ByteBuffer;
-use vortex::compressor::BtrBlocksCompressor;
 use vortex::dtype::DType;
-use vortex::nbytes::NBytes;
+use vortex::file::{VortexOpenOptions, VortexWriteOptions};
 use vortex::scalar::ScalarType;
-use vortex::stream::{ArrayStreamAdapter, ArrayStreamArrayExt};
+use vortex::stream::ArrayStreamArrayExt;
 use vortex::validity::Validity;
 use vortex::ToCanonical;
-use vortex_file::{VortexOpenOptions, VortexWriteOptions};
 
 static RUNTIME: Lazy<Runtime> =
   Lazy::new(|| Runtime::new().expect("Failed to create Tokio runtime"));
@@ -46,19 +44,12 @@ impl CodecInternal for VortexConfig {
       _ => unreachable!(),
     };
     let vortex_arr = PrimitiveArray::from_byte_buffer(byte_buffer, ptype, Validity::NonNullable);
-    let compressed = BtrBlocksCompressor
-      .compress(&vortex_arr)
-      .expect("vortex failed to compress");
 
-    let mut res = Vec::with_capacity(compressed.nbytes());
     // unfortunately vortex only has an async API
+    // By default, writing an array will decompress it back to its canonical form and then recompress it, so there's no need to compress it ahead of time.
     RUNTIME
-      .block_on(VortexWriteOptions::default().write(
-        &mut res,
-        ArrayStreamAdapter::new(dtype, vortex_arr.to_array_stream()),
-      ))
-      .expect("vortex failed to write");
-    res
+      .block_on(VortexWriteOptions::default().write(Vec::new(), vortex_arr.to_array_stream()))
+      .expect("vortex failed to write")
   }
 
   fn decompress<T: PcoNumber>(&self, src: &[u8]) -> Vec<T> {
