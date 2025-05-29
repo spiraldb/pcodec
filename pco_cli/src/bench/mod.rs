@@ -289,7 +289,7 @@ fn update_results_csv(
       }
 
       let fields: Vec<&str> = line.split(',').take(5).collect::<Vec<&str>>();
-      if fields.len() == 1 && fields[0] == "" {
+      if fields.len() == 1 && fields[0].is_empty() {
         // skip empty lines
         continue;
       }

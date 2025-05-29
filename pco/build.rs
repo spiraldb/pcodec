@@ -18,7 +18,7 @@ fn main() {
       missing_instructions.push("avx2");
     }
 
-    if missing_instructions.len() > 0 {
+    if !missing_instructions.is_empty() {
       println!(
         "cargo:warning=[pco] Building on x64 in release mode without the \
         following instruction sets: {}. \
