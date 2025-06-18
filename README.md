@@ -51,7 +51,7 @@ numerical sequences with
 
 [Use the Rust API](https://docs.rs/pco/latest/pco/)
 
-[Use the Python API](./pco_python/README.md)
+[Use the Python API](https://pcodec.readthedocs.io/en/latest/)
 
 [Use the Java API](./pco_java/README.md)
 

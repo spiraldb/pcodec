@@ -9,39 +9,11 @@ use pyo3::types::{PyBytes, PyModule, PyNone};
 use pyo3::{pyfunction, wrap_pyfunction, Bound, PyObject, PyResult, Python};
 
 use pco::data_types::{Number, NumberType};
-use pco::standalone::{FileDecompressor, MaybeChunkDecompressor};
+use pco::standalone::FileDecompressor;
 use pco::{match_number_enum, standalone, ChunkConfig};
 
 use crate::utils::pco_err_to_py;
 use crate::{utils, PyChunkConfig, PyProgress};
-
-fn decompress_chunks<'py, T: Number + Element>(
-  py: Python<'py>,
-  mut src: &[u8],
-  file_decompressor: FileDecompressor,
-) -> PyResult<Bound<'py, PyArray1<T>>> {
-  let res = py
-    .allow_threads(|| {
-      let n_hint = file_decompressor.n_hint();
-      let mut res: Vec<T> = Vec::with_capacity(n_hint);
-      while let MaybeChunkDecompressor::Some(mut chunk_decompressor) =
-        file_decompressor.chunk_decompressor::<T, &[u8]>(src)?
-      {
-        let initial_len = res.len(); // probably always zero to start, since we just created res
-        let remaining = chunk_decompressor.n();
-        unsafe {
-          res.set_len(initial_len + remaining);
-        }
-        let progress = chunk_decompressor.decompress(&mut res[initial_len..])?;
-        assert!(progress.finished);
-        src = chunk_decompressor.into_src();
-      }
-      Ok(res)
-    })
-    .map_err(pco_err_to_py)?;
-  let py_array = res.into_pyarray_bound(py);
-  Ok(py_array)
-}
 
 fn simple_compress_generic<'py, T: Number + Element>(
   py: Python<'py>,
@@ -55,7 +27,7 @@ fn simple_compress_generic<'py, T: Number + Element>(
     .map_err(pco_err_to_py)?;
   // TODO apparently all the places we use PyBytes::new() copy the data.
   // Maybe there's a zero-copy way to do this.
-  Ok(PyBytes::new_bound(py, &compressed))
+  Ok(PyBytes::new(py, &compressed))
 }
 
 fn simple_decompress_into_generic<T: Number + Element>(
@@ -76,10 +48,10 @@ pub fn register(m: &Bound<PyModule>) -> PyResult<()> {
   /// Compresses an array into a standalone format.
   ///
   /// :param nums: numpy array to compress. This may have any shape.
-  /// However, it must be contiguous, and only the following data types are
-  /// supported: float16, float32, float64, int16, int32, int64, uint16, uint32, uint64.
+  ///   However, it must be contiguous, and only the following data types are
+  ///   supported: float16, float32, float64, int16, int32, int64, uint16, uint32, uint64.
   /// :param config: a ChunkConfig object containing compression level and
-  /// other settings.
+  ///   other settings.
   ///
   /// :returns: compressed bytes for an entire standalone file
   ///
@@ -105,13 +77,13 @@ pub fn register(m: &Bound<PyModule>) -> PyResult<()> {
   ///
   /// :param compressed: a bytes object a full standalone file of compressed data.
   /// :param dst: a numpy array to fill with the decompressed values. May have
-  /// any shape, but must be contiguous.
+  ///   any shape, but must be contiguous.
   ///
   /// :returns: progress, an object with a count of elements written and
-  /// whether the compressed data was finished. If dst is shorter than the
-  /// numbers in compressed, writes as much as possible and leaves the rest
-  /// untouched. If dst is longer, fills dst and does nothing with the
-  /// remaining data.
+  ///   whether the compressed data was finished. If dst is shorter than the
+  ///   numbers in compressed, writes as much as possible and leaves the rest
+  ///   untouched. If dst is longer, fills dst and does nothing with the
+  ///   remaining data.
   ///
   /// :raises: TypeError, RuntimeError
   #[pyfunction]
@@ -135,9 +107,9 @@ pub fn register(m: &Bound<PyModule>) -> PyResult<()> {
   /// :param compressed: a bytes object a full standalone file of compressed data.
   ///
   /// :returns: data, either a 1D numpy array of the decompressed values or, in
-  /// the event that there are no values, a None.
-  /// The array's data type will be set appropriately based on the contents of
-  /// the file header.
+  ///   the event that there are no values, a None.
+  ///   The array's data type will be set appropriately based on the contents of
+  ///   the file header.
   ///
   /// :raises: TypeError, RuntimeError
   #[pyfunction]
@@ -154,11 +126,16 @@ pub fn register(m: &Bound<PyModule>) -> PyResult<()> {
         match_number_enum!(
           number_type,
           NumberType<T> => {
-            Ok(decompress_chunks::<T>(py, src, file_decompressor)?.to_object(py))
+            let res = py
+              .allow_threads(|| file_decompressor.simple_decompress::<T>(src))
+              .map_err(pco_err_to_py)?
+              .into_pyarray(py)
+              .to_object(py);
+            Ok(res)
           }
         )
       }
-      Termination => Ok(PyNone::get_bound(py).to_object(py)),
+      Termination => Ok(PyNone::get(py).to_object(py)),
       Unknown(other) => Err(PyRuntimeError::new_err(format!(
         "unrecognized dtype byte {:?}",
         other,

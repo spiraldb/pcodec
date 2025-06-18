@@ -1,3 +1,7 @@
+#![allow(clippy::uninit_vec)]
+#![deny(clippy::unused_unit)]
+#![deny(dead_code)]
+
 use crate::config::{PyChunkConfig, PyDeltaSpec, PyModeSpec, PyPagingSpec};
 use crate::progress::PyProgress;
 use pyo3::prelude::*;
@@ -25,7 +29,7 @@ fn pcodec(m: &Bound<PyModule>) -> PyResult<()> {
   )?;
 
   // =========== STANDALONE ===========
-  let standalone_module = PyModule::new_bound(py, "pcodec.standalone")?;
+  let standalone_module = PyModule::new(py, "pcodec.standalone")?;
   standalone::register(&standalone_module)?;
   // hackery from https://github.com/PyO3/pyo3/issues/1517#issuecomment-808664021
   // to make modules work nicely
@@ -37,7 +41,7 @@ fn pcodec(m: &Bound<PyModule>) -> PyResult<()> {
   m.add_submodule(&standalone_module)?;
 
   // =========== WRAPPED ===========
-  let wrapped_module = PyModule::new_bound(py, "pcodec.wrapped")?;
+  let wrapped_module = PyModule::new(py, "pcodec.wrapped")?;
   wrapped::register(&wrapped_module)?;
   py_run!(
     py,

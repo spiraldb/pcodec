@@ -2,11 +2,11 @@
 
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fs;
 use std::ops::AddAssign;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
-use std::{any, fs};
 
 use anyhow::{anyhow, Result};
 use arrow::datatypes::{DataType, Schema};
@@ -21,7 +21,7 @@ use pco::match_number_enum;
 
 use crate::bench::codecs::CodecConfig;
 use crate::input::{Format, InputColumnOpt, InputFileOpt};
-use crate::{arrow_handlers, dtypes, input, parse};
+use crate::{arrow_handlers, dtypes, input, parse, utils};
 
 mod codecs;
 pub mod handler;
@@ -51,9 +51,9 @@ pub struct BenchOpt {
   /// colon-separated configurations.
   ///
   /// For example, setting this to
-  /// `zstd,zstd:level=10,pco:level=9:delta_order=0`
+  /// `zstd,zstd:level=10,pco:level=9:delta=Consecutive@1`
   /// will compare 3 codecs: zstd at default compression level (3), zstd at
-  /// level 10, and pco at level 9 with 0th order delta encoding.
+  /// level 10, and pco at level 9 with 1st order delta encoding.
   ///
   /// To see what valid configurations look like, try entering an invalid one.
   #[arg(long, short, default_value = "pco", value_parser = CodecConfig::from_str, value_delimiter = ',')]
@@ -241,15 +241,11 @@ impl PrintStat {
   }
 }
 
-fn type_basename<T>() -> String {
-  any::type_name::<T>().split(':').last().unwrap().to_string()
-}
-
 fn core_dtype_to_str(dtype: NumberType) -> String {
   match_number_enum!(
     dtype,
     NumberType<T> => {
-      type_basename::<T>()
+      utils::dtype_name::<T>()
     }
   )
 }
@@ -293,6 +289,10 @@ fn update_results_csv(
       }
 
       let fields: Vec<&str> = line.split(',').take(5).collect::<Vec<&str>>();
+      if fields.len() == 1 && fields[0].is_empty() {
+        // skip empty lines
+        continue;
+      }
       let fields: [&str; 5] = fields.clone().try_into().map_err(|_| {
         anyhow!(
           "existing results CSV row contained fewer than 5 fields: {:?}",
